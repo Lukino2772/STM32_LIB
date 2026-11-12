@@ -1,0 +1,7 @@
+#include "seven_segment.h"
+static const uint8_t map[10]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+static GPIO_PinState level(SEG_Handle*h,uint8_t on){return (on^(h->polarity==SEG_COMMON_ANODE))?GPIO_PIN_SET:GPIO_PIN_RESET;}
+void SEG_Init(SEG_Handle*h){if(!h)return;SEG_Clear(h);}
+void SEG_Clear(SEG_Handle*h){if(!h)return;for(int i=0;i<8;i++)if(h->port[i])HAL_GPIO_WritePin(h->port[i],h->pin[i],level(h,0));if(h->digit_port)for(int i=0;i<h->digits;i++)HAL_GPIO_WritePin(h->digit_port[i],h->digit_pin[i],GPIO_PIN_RESET);}
+void SEG_WriteDigit(SEG_Handle*h,uint8_t p,int8_t v,uint8_t dp){if(!h||p>=8)return;uint8_t bits=(v>=0&&v<=9)?map[(uint8_t)v]:0;if(dp)bits|=0x80;for(int i=0;i<8;i++)if(h->port[i])HAL_GPIO_WritePin(h->port[i],h->pin[i],level(h,(bits>>i)&1));}
+void SEG_DisplayNumber(SEG_Handle*h,int32_t n){if(!h||!h->digit_port||!h->digit_pin||!h->digits)return;uint8_t d[8]={0};uint32_t x=(n<0)?(uint32_t)(-(int64_t)n):(uint32_t)n;for(int i=h->digits-1;i>=0;i--){d[i]=(uint8_t)(x%10);x/=10;}for(int i=0;i<h->digits;i++){HAL_GPIO_WritePin(h->digit_port[i],h->digit_pin[i],GPIO_PIN_RESET);SEG_WriteDigit(h,(uint8_t)i,(int8_t)d[i],0);HAL_GPIO_WritePin(h->digit_port[i],h->digit_pin[i],GPIO_PIN_SET);HAL_Delay(2);HAL_GPIO_WritePin(h->digit_port[i],h->digit_pin[i],GPIO_PIN_RESET);}}

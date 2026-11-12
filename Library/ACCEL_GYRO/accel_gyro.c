@@ -1,0 +1,8 @@
+#include "accel_gyro.h"
+#define REG_WHO 0x75
+#define REG_PWR 0x6B
+#define REG_ACC 0x3B
+static HAL_StatusTypeDef wr(AG_Handle*h,uint8_t r,uint8_t v){return HAL_I2C_Mem_Write(h->i2c,h->address,r,I2C_MEMADD_SIZE_8BIT,&v,1,100);}
+HAL_StatusTypeDef AG_Init(AG_Handle*h,I2C_HandleTypeDef*i,uint8_t a){if(!h||!i)return HAL_ERROR;h->i2c=i;h->address=(uint8_t)(a<=0x7F?a<<1:a);uint8_t id=0;if(HAL_I2C_Mem_Read(i,h->address,REG_WHO,I2C_MEMADD_SIZE_8BIT,&id,1,100)!=HAL_OK)return HAL_ERROR;h->type=(AG_Type)id;if(id!=0x68&&id!=0x70&&id!=0x71&&id!=0x73)return HAL_ERROR;HAL_Delay(100);if(wr(h,REG_PWR,0x00)!=HAL_OK)return HAL_ERROR;HAL_Delay(10);h->accel_scale=16384.0f;h->gyro_scale=131.0f;return AG_SetRanges(h,0,0);}
+HAL_StatusTypeDef AG_SetRanges(AG_Handle*h,uint8_t a,uint8_t g){if(!h||a>3||g>3)return HAL_ERROR;static const float as[]={16384,8192,4096,2048},gs[]={131,65.5f,32.8f,16.4f};if(wr(h,0x1C,(uint8_t)(a<<3))!=HAL_OK||wr(h,0x1B,(uint8_t)(g<<3))!=HAL_OK)return HAL_ERROR;h->accel_scale=as[a];h->gyro_scale=gs[g];return HAL_OK;}
+HAL_StatusTypeDef AG_Read(AG_Handle*h){if(!h)return HAL_ERROR;uint8_t b[14];if(HAL_I2C_Mem_Read(h->i2c,h->address,REG_ACC,I2C_MEMADD_SIZE_8BIT,b,14,100)!=HAL_OK)return HAL_ERROR;int16_t v[7];for(int k=0;k<7;k++)v[k]=(int16_t)((b[2*k]<<8)|b[2*k+1]);h->ax=v[0]/h->accel_scale;h->ay=v[1]/h->accel_scale;h->az=v[2]/h->accel_scale;h->gx=v[4]/h->gyro_scale;h->gy=v[5]/h->gyro_scale;h->gz=v[6]/h->gyro_scale;return HAL_OK;}

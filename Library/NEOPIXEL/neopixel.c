@@ -1,0 +1,6 @@
+#include "neopixel.h"
+#define NP_BITS 24
+HAL_StatusTypeDef NeoPixel_Init(NeoPixel_Handle*h,TIM_HandleTypeDef*t,uint32_t ch,uint16_t n,uint32_t*b,uint16_t bl,uint32_t z,uint32_t o){if(!h||!t||!b||!n||bl<(uint32_t)n*NP_BITS+80)return HAL_ERROR;h->timer=t;h->channel=ch;h->led_count=n;h->dma_buffer=b;h->buffer_len=bl;h->zero_compare=z;h->one_compare=o;h->brightness=255;NeoPixel_Clear(h);return HAL_OK;}
+void NeoPixel_SetPixel(NeoPixel_Handle*h,uint16_t i,uint8_t r,uint8_t g,uint8_t b){if(!h||i>=h->led_count)return;uint8_t c[3]={g,r,b};uint32_t k=(uint32_t)i*24;for(int j=0;j<3;j++)for(int bit=7;bit>=0;bit--)h->dma_buffer[k++]=(c[j]&(1<<bit))?h->one_compare:h->zero_compare;}
+void NeoPixel_Clear(NeoPixel_Handle*h){if(!h)return;for(uint32_t i=0;i<(uint32_t)h->led_count*24;i++)h->dma_buffer[i]=h->zero_compare;for(uint32_t i=(uint32_t)h->led_count*24;i<h->buffer_len;i++)h->dma_buffer[i]=0;}
+HAL_StatusTypeDef NeoPixel_Show(NeoPixel_Handle*h){if(!h)return HAL_ERROR;return HAL_TIM_PWM_Start_DMA(h->timer,h->channel,h->dma_buffer,h->buffer_len);}
